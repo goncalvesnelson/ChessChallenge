@@ -10,9 +10,6 @@ KNIGHT_SYMBOL = "Kn"
 VALID_PIECES = {ROOK_SYMBOL, QUEEN_SYMBOL, KING_SYMBOL, BISHOP_SYMBOL,
                 KNIGHT_SYMBOL}
 
-size = 8
-pieces_ = ["Q", "K", "R", "B"]
-
 
 def _get_bishop_pos(board_size, row, col):
     """Return a list of tuples with the positions reachable by a bishop in the
@@ -44,6 +41,7 @@ def _get_bishop_pos(board_size, row, col):
         diag_col +=1
     return res
 
+
 def _get_rook_pos(board_size, row, column):
     """Return a list of tuples with the positions reachable by a rook in the
     position identified by row and column."""
@@ -52,6 +50,7 @@ def _get_rook_pos(board_size, row, column):
     # add row except for place where rook is
     res.extend(((row, c) for c in range(board_size) if c != column))
     return res
+
 
 def _get_king_pos(board_size, row, column):
     """Return a list of tuples with the positions reachable by a king in the
@@ -63,6 +62,7 @@ def _get_king_pos(board_size, row, column):
         if 0 <= row + r <board_size and 0 <= column + c < board_size:
             res.append((row+r, column+c))
     return res
+
 
 def _get_knight_pos(board_size, row, column):
     """Return a list of tuples with the positions reachable by a knight in the
@@ -76,6 +76,7 @@ def _get_knight_pos(board_size, row, column):
             res.append((row+r, column+c))
 
     return res
+
 
 def _get_queen_pos(board_size, row, column):
     """Return a list of tuples with the positions reachable by a queen in the
@@ -103,8 +104,8 @@ def set_positions(board, position_list, mark="x"):
 
 def try_place_piece(board, piece, row, column):
     """"Function that tries to place a piece on the board. If able to to so,
-     it will return True and modify the board to place the piece, else it will
-     return False.
+     it will return True and a new board with the piece in it, else it will
+     return False and None (since the board hasn't been modified).
      :param board: board where we will try to place the piece
      :param piece: type of piece we want to place on the board
      :param row: row where we want to place the piece
@@ -124,53 +125,48 @@ def try_place_piece(board, piece, row, column):
     # if any of the positions our piece covers has already another chess piece
     # on it we cannot place it.
     if set(get_positions(board, piece_pos)).intersection(set(VALID_PIECES)):
-        return False
+        return False, None
     else:
+        # Copy the board
+        board_cp = [r[:] for r in board]
         # The piece can be safely placed, mark the board positions
-        set_positions(board, piece_pos)
-        board[row][column] = piece.capitalize()
-        return True
+        set_positions(board_cp, piece_pos)
+        board_cp[row][column] = piece.capitalize()
+        return True, board_cp
 
 
-def _solve_board_at(board_size, starting_row, starting_col, piece_set):
+def _solve_board(board, starting_row, starting_col, piece_set, sol_number):
     """tries to solve board starting at a given position for a given set
     of pieces"""
-    number_solutions = 0
-    pieces_perm = set(permutations(piece_set))
-    for pieces in pieces_perm:
-        pieces = list(pieces)
-        # for every permutation of the pieces, try to get then in a new board
-        board = [[False]*board_size for _ in range(board_size)]
-        row = starting_row
-        column = starting_col
-        while row < board_size:
-            while column < board_size:
-                if not board[row][column]:
-                    # try to place piece
-                    # get piece we have to place
-                    if pieces:
-                        piece = pieces[-1]
-                        placed = try_place_piece(board, piece, row, column)
-                        if placed:
-                            pieces.pop()
-                    column += 1
-                else:
-                    column += 1
-                if not pieces:
-                    break
-            column = 0
-            row += 1
-            if not pieces:
-                break
-        if not pieces:
-            print_board(board)
-            number_solutions += 1
-    return number_solutions
+    if not piece_set:
+        print_board(board)
+        sol_number[0] += 1
+        return True
+
+    board_size = len(board)
+    pieces = list(piece_set)
+    row = starting_row
+    column = starting_col
+    while row < board_size:
+        while column < board_size:
+            if not board[row][column]:
+                piece = pieces[0]
+                placed, new_board = try_place_piece(board, piece, row, column)
+                if placed:
+                    _solve_board(new_board, row, column, pieces[1:],
+                                 sol_number)
+                column += 1
+            else:
+                column += 1
+        column = 0
+        row += 1
+    if pieces:
+        return None
 
 
 def print_board(board, cell_size=5):
     board_size = len(board)
-    print("-"*cell_size*(board_size+1))
+    print("*"*(board_size*cell_size+board_size+1))
     for row in board:
         formatted_row = []
         for column in row:
@@ -181,24 +177,21 @@ def print_board(board, cell_size=5):
         print ("|", end="")
         print(*formatted_row, sep="|", end="")
         print("|")
-        print("-"*cell_size*(board_size+1))
+        print("*"*(board_size*cell_size+board_size+1))
 
 
 def solve(board_size, pieces):
-    total_solutions = 0
-    for row in range(board_size):
-        for col in range(board_size):
-            sols = _solve_board_at(board_size, row, col, pieces)
-            if sols:
-                total_solutions += sols
-            else:
-                # TODO Check if we can stop after we cannot find any more solutions
-                return total_solutions
-
+    board = [[False]*board_size for _ in range(board_size)]
+    total_solutions = [0]
+    for piece_set in (set(permutations(pieces))):
+        _solve_board(board, 0, 0, piece_set, total_solutions)
+    print("Total number of solutions: {0}".format(total_solutions[0]))
 
 
 
 if __name__ == "__main__":
-    #t_sols = solve(4, ["Kn", "Kn", "R", "R", "Kn", "Kn"])
-    t_sols = solve(8, ["Q"]*8)
-    print("Total number of solutions: {0}".format(t_sols))
+    #solve(4, ["Kn", "Kn", "R", "R", "Kn", "Kn"])
+    #solve(8, ["Q"]*8)
+    #solve(3, ["K", "K", "R"])
+    #solve(7, ["K", "K", "Q", "Q", "B", "B", "Kn"])
+    solve(12, ["Q"]*12)
