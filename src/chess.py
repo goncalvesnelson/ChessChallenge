@@ -1,5 +1,4 @@
 from __future__ import print_function
-from itertools import permutations
 
 ROOK_SYMBOL = "R"
 QUEEN_SYMBOL = "Q"
@@ -19,26 +18,26 @@ def _get_bishop_pos(board_size, row, col):
     # get SE diagonal
     while diag_row < board_size and diag_col < board_size:
         res.append((diag_row, diag_col))
-        diag_row +=1
-        diag_col +=1
+        diag_row += 1
+        diag_col += 1
     # get NW diagonal
     diag_row, diag_col = row-1, col-1
     while diag_row >= 0 and diag_col >= 0:
         res.append((diag_row, diag_col))
-        diag_row -=1
-        diag_col -=1
+        diag_row -= 1
+        diag_col -= 1
     # get SW diagonal
     diag_row, diag_col = row+1, col-1
     while diag_row < board_size and diag_col >= 0:
         res.append((diag_row, diag_col))
-        diag_row +=1
-        diag_col -=1
+        diag_row += 1
+        diag_col -= 1
     # get NE diagonal
     diag_row, diag_col = row-1, col+1
-    while diag_row >=0 and diag_col < board_size:
+    while diag_row >= 0 and diag_col < board_size:
         res.append((diag_row, diag_col))
-        diag_row -=1
-        diag_col +=1
+        diag_row -= 1
+        diag_col += 1
     return res
 
 
@@ -57,10 +56,10 @@ def _get_king_pos(board_size, row, column):
     position identified by row and column."""
     res = []
     # Get list of tuple deltas of row and column of how a king can move.
-    king_pos_deltas = ((r, c) for r in range(-1,2) for c in range(-1,2))
-    for (r, c) in king_pos_deltas:
-        if 0 <= row + r <board_size and 0 <= column + c < board_size:
-            res.append((row+r, column+c))
+    king_pos_deltas = ((r, c) for r in range(-1, 2) for c in range(-1, 2))
+    for r, c in king_pos_deltas:
+        if 0 <= row + r < board_size and 0 <= column + c < board_size:
+            res.append((row + r, column + c))
     return res
 
 
@@ -69,11 +68,11 @@ def _get_knight_pos(board_size, row, column):
     position identified by row and column."""
     res = []
     # Get list of tuple deltas of row and column of how a king can move.
-    knight_pos_deltas = [(-2,-1), (-2, 1), (-1, -2), (-1, 2), (2, -1), (2, 1),
+    knight_pos_deltas = [(-2, -1), (-2, 1), (-1, -2), (-1, 2), (2, -1), (2, 1),
                          (1, -2), (1, 2)]
-    for (r, c) in knight_pos_deltas:
-        if 0 <= row + r <board_size and 0 <= column + c < board_size:
-            res.append((row+r, column+c))
+    for r, c in knight_pos_deltas:
+        if 0 <= row + r < board_size and 0 <= column + c < board_size:
+            res.append((row + r, column + c))
 
     return res
 
@@ -90,8 +89,6 @@ def _get_queen_pos(board_size, row, column):
 
 def get_positions(board, position_list):
     res = []
-    # TODO remove this assert after testing
-    assert len(position_list) == len(set(position_list)), "ups, repeated elems"
     for (row, col) in position_list:
         res.append(board[row][col])
     return res
@@ -183,15 +180,61 @@ def print_board(board, cell_size=5):
 def solve(board_size, pieces):
     board = [[False]*board_size for _ in range(board_size)]
     total_solutions = [0]
-    for piece_set in (set(permutations(pieces))):
+    for piece_set in (unique_permutations(pieces)):
         _solve_board(board, 0, 0, piece_set, total_solutions)
     print("Total number of solutions: {0}".format(total_solutions[0]))
 
 
+# unique_permutations code taken from http://stackoverflow.com/a/12837695
+def unique_permutations(seq):
+    """
+    Yield only unique permutations of seq in an efficient way.
+
+    A python implementation of Knuth's "Algorithm L", also known from the
+    std::next_permutation function of C++, and as the permutation algorithm
+    of Narayana Pandita.
+    :param seq: sequence to which we want the unique permutations.
+    """
+    # Precalculate the indices we'll be iterating over for speed
+    i_indices = range(len(seq) - 1, -1, -1)
+    k_indices = i_indices[1:]
+
+    # The algorithm specifies to start with a sorted version
+    seq = sorted(seq)
+
+    while True:
+        yield seq
+
+        # Working backwards from the last-but-one index,
+        # we find the index of the first decrease in value.
+        for k in k_indices:
+            if seq[k] < seq[k + 1]:
+                break
+        else:
+            # Introducing the slightly unknown python for-else syntax:
+            # else is executed only if the break statement was never reached.
+            # If this is the case, seq is weakly decreasing, and we're done.
+            return
+
+        # Get item from sequence only once, for speed
+        k_val = seq[k]
+
+        # Working backwards starting with the last item,
+        # find the first one greater than the one at k
+        for i in i_indices:
+            if k_val < seq[i]:
+                break
+
+        # Swap them in the most efficient way
+        (seq[k], seq[i]) = (seq[i], seq[k])
+
+        # Reverse the part after but not
+        # including k, also efficiently.
+        seq[k + 1:] = seq[-1:k:-1]
 
 if __name__ == "__main__":
-    #solve(4, ["Kn", "Kn", "R", "R", "Kn", "Kn"])
-    #solve(8, ["Q"]*8)
-    #solve(3, ["K", "K", "R"])
-    #solve(7, ["K", "K", "Q", "Q", "B", "B", "Kn"])
-    solve(12, ["Q"]*12)
+    # solve(4, ["Kn", "Kn", "R", "R", "Kn", "Kn"])
+    # solve(8, ["Q"]*8)
+    # solve(3, ["K", "K", "R"])
+    # solve(7, ["K", "K", "Q", "Q", "B", "B", "Kn"])
+    solve(11, ["Q"]*11)
