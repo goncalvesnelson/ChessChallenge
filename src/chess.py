@@ -11,83 +11,91 @@ VALID_PIECES = {ROOK_SYMBOL, QUEEN_SYMBOL, KING_SYMBOL, BISHOP_SYMBOL,
 
 
 def _get_bishop_pos(board_size, row, col):
-    """Return a list of tuples with the positions reachable by a bishop in the
+    """Return a set of tuples with the positions reachable by a bishop in the
     position identified by row and column."""
-    res = []
+    res = set()
     diag_row, diag_col = row+1, col+1
     # get SE diagonal
     while diag_row < board_size and diag_col < board_size:
-        res.append((diag_row, diag_col))
+        res.add((diag_row, diag_col))
         diag_row += 1
         diag_col += 1
     # get NW diagonal
     diag_row, diag_col = row-1, col-1
     while diag_row >= 0 and diag_col >= 0:
-        res.append((diag_row, diag_col))
+        res.add((diag_row, diag_col))
         diag_row -= 1
         diag_col -= 1
     # get SW diagonal
     diag_row, diag_col = row+1, col-1
     while diag_row < board_size and diag_col >= 0:
-        res.append((diag_row, diag_col))
+        res.add((diag_row, diag_col))
         diag_row += 1
         diag_col -= 1
     # get NE diagonal
     diag_row, diag_col = row-1, col+1
     while diag_row >= 0 and diag_col < board_size:
-        res.append((diag_row, diag_col))
+        res.add((diag_row, diag_col))
         diag_row -= 1
         diag_col += 1
+
     return res
 
 
 def _get_rook_pos(board_size, row, column):
-    """Return a list of tuples with the positions reachable by a rook in the
+    """Return a set of tuples with the positions reachable by a rook in the
     position identified by row and column."""
-    # get whole column except place where rook is
-    res = [(r, column) for r in range(board_size) if r != row]
-    # add row except for place where rook is
-    res.extend(((row, c) for c in range(board_size) if c != column))
+    # get whole column
+    res = set([(r, column) for r in range(board_size)])
+    # add row
+    res.update(((row, c) for c in range(board_size)))
+    res.remove((row, column))
     return res
 
 
 def _get_king_pos(board_size, row, column):
-    """Return a list of tuples with the positions reachable by a king in the
+    """Return a set of tuples with the positions reachable by a king in the
     position identified by row and column."""
-    res = []
+    res = set()
     # Get list of tuple deltas of row and column of how a king can move.
     king_pos_deltas = ((r, c) for r in range(-1, 2) for c in range(-1, 2))
     for r, c in king_pos_deltas:
         if 0 <= row + r < board_size and 0 <= column + c < board_size:
-            res.append((row + r, column + c))
+            res.add((row + r, column + c))
+    res.remove((row, column))
     return res
 
 
 def _get_knight_pos(board_size, row, column):
-    """Return a list of tuples with the positions reachable by a knight in the
+    """Return a set of tuples with the positions reachable by a knight in the
     position identified by row and column."""
-    res = []
+    res = set()
     # Get list of tuple deltas of row and column of how a king can move.
     knight_pos_deltas = [(-2, -1), (-2, 1), (-1, -2), (-1, 2), (2, -1), (2, 1),
                          (1, -2), (1, 2)]
     for r, c in knight_pos_deltas:
         if 0 <= row + r < board_size and 0 <= column + c < board_size:
-            res.append((row + r, column + c))
+            res.add((row + r, column + c))
 
     return res
 
 
 def _get_queen_pos(board_size, row, column):
-    """Return a list of tuples with the positions reachable by a queen in the
+    """Return a set of tuples with the positions reachable by a queen in the
     position identified by row and column."""
     # A queen can move like a rook
     res = _get_rook_pos(board_size, row, column)
     # and like a bishop
-    res.extend(_get_bishop_pos(board_size, row, column))
+    res.update(_get_bishop_pos(board_size, row, column))
     return res
 
 
 def get_positions(board, position_list):
+    """ Return the contents of board in the positions from position_list
+    :param board: board from where we will retrieve the contents.
+    :param position_list: list of tuples (row, column) to which we want to
+        retrieve the contents from.
+    """
     res = []
     for (row, col) in position_list:
         res.append(board[row][col])
@@ -95,6 +103,11 @@ def get_positions(board, position_list):
 
 
 def set_positions(board, position_list, mark="x"):
+    """ Set the contents of board in the positions from position_list to mark.
+    :param board: board where we will set the positions.
+    :param position_list: list of tuples (row, column) we wish to set
+    :param mark: what we want to use to set the positions.
+    """
     for (row, col) in position_list:
         board[row][col] = mark
 
@@ -132,36 +145,42 @@ def try_place_piece(board, piece, row, column):
         return True, board_cp
 
 
-def _solve_board(board, starting_row, starting_col, piece_set, sol_number):
+def _solve_board(board, starting_row, starting_col, piece_set, sol_number,
+                 print_solutions):
     """tries to solve board starting at a given position for a given set
     of pieces"""
     if not piece_set:
-        print_board(board)
+        if print_solutions:
+            print_board(board)
         sol_number[0] += 1
         return True
 
     board_size = len(board)
-    pieces = list(piece_set)
     row = starting_row
     column = starting_col
     while row < board_size:
         while column < board_size:
             if not board[row][column]:
-                piece = pieces[0]
+                piece = piece_set[0]
                 placed, new_board = try_place_piece(board, piece, row, column)
                 if placed:
-                    _solve_board(new_board, row, column, pieces[1:],
-                                 sol_number)
-                column += 1
-            else:
-                column += 1
+                    _solve_board(new_board, row, column, piece_set[1:],
+                                 sol_number, print_solutions)
+            column += 1
+
         column = 0
         row += 1
-    if pieces:
+    # if we got to the end of the board and still have pieces to place, return
+    if piece_set:
         return None
 
 
-def print_board(board, cell_size=5):
+def print_board(board, cell_size=3):
+    """Prints the board passed as argument.
+    :param board: Board to be printed.
+    :param cell_size: size that each square will occupy on the board.
+
+    """
     board_size = len(board)
     print("*"*(board_size*cell_size+board_size+1))
     for row in board:
@@ -177,12 +196,18 @@ def print_board(board, cell_size=5):
         print("*"*(board_size*cell_size+board_size+1))
 
 
-def solve(board_size, pieces):
+def solve(board_size, pieces, print_solutions=True):
+    """Function to solve a board a given size with a given set of pieces
+    :param board_size: Size of the board to solve.
+    :param pieces: List with strings representing the pieces to try putting
+        on the board.
+    """
     board = [[False]*board_size for _ in range(board_size)]
     total_solutions = [0]
     for piece_set in (unique_permutations(pieces)):
-        _solve_board(board, 0, 0, piece_set, total_solutions)
+        _solve_board(board, 0, 0, piece_set, total_solutions, print_solutions)
     print("Total number of solutions: {0}".format(total_solutions[0]))
+    return total_solutions[0]
 
 
 # unique_permutations code taken from http://stackoverflow.com/a/12837695
@@ -233,8 +258,4 @@ def unique_permutations(seq):
         seq[k + 1:] = seq[-1:k:-1]
 
 if __name__ == "__main__":
-    # solve(4, ["Kn", "Kn", "R", "R", "Kn", "Kn"])
-    # solve(8, ["Q"]*8)
-    # solve(3, ["K", "K", "R"])
-    # solve(7, ["K", "K", "Q", "Q", "B", "B", "Kn"])
-    solve(11, ["Q"]*11)
+    solve(7, ["K", "K", "Q", "Q", "B", "B", "Kn"])
