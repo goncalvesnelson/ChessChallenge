@@ -1,4 +1,5 @@
 from __future__ import print_function
+from functools import wraps
 
 ROOK_SYMBOL = "R"
 QUEEN_SYMBOL = "Q"
@@ -10,6 +11,20 @@ VALID_PIECES = {ROOK_SYMBOL, QUEEN_SYMBOL, KING_SYMBOL, BISHOP_SYMBOL,
                 KNIGHT_SYMBOL}
 
 
+def memoize(func):
+    """Memoize function to use with get_x_pos functions"""
+    cache = {}
+
+    @wraps(func)
+    def wrapper(*args):
+        if args not in cache:
+            cache[args] = res = func(*args)
+            return res
+        return cache[args]
+    return wrapper
+
+
+@memoize
 def _get_bishop_pos(board_size, row, col):
     """Return a set of tuples with the positions reachable by a bishop in the
     position identified by row and column."""
@@ -42,6 +57,7 @@ def _get_bishop_pos(board_size, row, col):
     return res
 
 
+@memoize
 def _get_rook_pos(board_size, row, column):
     """Return a set of tuples with the positions reachable by a rook in the
     position identified by row and column."""
@@ -53,6 +69,7 @@ def _get_rook_pos(board_size, row, column):
     return res
 
 
+@memoize
 def _get_king_pos(board_size, row, column):
     """Return a set of tuples with the positions reachable by a king in the
     position identified by row and column."""
@@ -66,6 +83,7 @@ def _get_king_pos(board_size, row, column):
     return res
 
 
+@memoize
 def _get_knight_pos(board_size, row, column):
     """Return a set of tuples with the positions reachable by a knight in the
     position identified by row and column."""
@@ -80,14 +98,15 @@ def _get_knight_pos(board_size, row, column):
     return res
 
 
+@memoize
 def _get_queen_pos(board_size, row, column):
     """Return a set of tuples with the positions reachable by a queen in the
     position identified by row and column."""
     # A queen can move like a rook
-    res = _get_rook_pos(board_size, row, column)
+    rook = _get_rook_pos(board_size, row, column)
     # and like a bishop
-    res.update(_get_bishop_pos(board_size, row, column))
-    return res
+    bishop = _get_bishop_pos(board_size, row, column)
+    return rook.union(bishop)
 
 
 def get_positions(board, position_list):
@@ -204,7 +223,7 @@ def solve(board_size, pieces, print_solutions=True):
     """
     board = [[False]*board_size for _ in range(board_size)]
     total_solutions = [0]
-    for piece_set in (unique_permutations(pieces)):
+    for piece_set in unique_permutations(pieces):
         _solve_board(board, 0, 0, piece_set, total_solutions, print_solutions)
     print("Total number of solutions: {0}".format(total_solutions[0]))
     return total_solutions[0]
